@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import {
   Link2, Copy, Check, QrCode, BarChart3, Trash2,
   Zap, ExternalLink, ChevronDown, X, Loader2,
-  Globe, MousePointerClick, Calendar, TrendingUp
+  Globe, MousePointerClick, Calendar, TrendingUp,
+  Twitter, MessageCircle, Share2, Flame
 } from 'lucide-react'
 
 const API_BASE = '/api'
@@ -20,6 +21,8 @@ function App() {
   const [qrCode, setQrCode] = useState(null)
   const [selectedUrl, setSelectedUrl] = useState(null)
   const [urlStats, setUrlStats] = useState(null)
+  const [showTrending, setShowTrending] = useState(false)
+  const [trending, setTrending] = useState([])
 
   useEffect(() => {
     fetchUrls()
@@ -55,6 +58,27 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch URL stats:', err)
     }
+  }
+
+  const fetchTrending = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/trending`)
+      const data = await res.json()
+      setTrending(data)
+      setShowTrending(true)
+    } catch (err) {
+      console.error('Failed to fetch trending:', err)
+    }
+  }
+
+  const shareToTwitter = (shortUrl) => {
+    const text = encodeURIComponent(`Just shortened my link with SHRTNR - the dark mode URL shortener that doesn't suck. ${shortUrl}`)
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
+  }
+
+  const shareToDiscord = (shortUrl) => {
+    navigator.clipboard.writeText(`Check out my shortened link: ${shortUrl} - made with SHRTNR`)
+    alert('Copied to clipboard! Paste in Discord.')
   }
 
   const shortenUrl = async (e) => {
@@ -149,6 +173,13 @@ function App() {
 
           {stats && (
             <div className="hidden md:flex items-center gap-6 text-sm">
+              <button
+                onClick={fetchTrending}
+                className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors"
+              >
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="font-medium">Trending</span>
+              </button>
               <div className="flex items-center gap-2 text-slate-400">
                 <Globe className="w-4 h-4 text-cyan-400" />
                 <span className="font-mono">{stats.total_urls}</span>
@@ -265,6 +296,7 @@ function App() {
                       <button
                         onClick={() => copyToClipboard(result.short_url)}
                         className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+                        title="Copy"
                       >
                         {copied ? (
                           <Check className="w-5 h-5 text-green-400" />
@@ -275,8 +307,23 @@ function App() {
                       <button
                         onClick={() => fetchQrCode(result.short_code)}
                         className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+                        title="QR Code"
                       >
                         <QrCode className="w-5 h-5 text-slate-400" />
+                      </button>
+                      <button
+                        onClick={() => shareToTwitter(result.short_url)}
+                        className="p-3 bg-slate-800 hover:bg-blue-600 rounded-lg transition-colors"
+                        title="Share on Twitter"
+                      >
+                        <Twitter className="w-5 h-5 text-slate-400 hover:text-white" />
+                      </button>
+                      <button
+                        onClick={() => shareToDiscord(result.short_url)}
+                        className="p-3 bg-slate-800 hover:bg-indigo-600 rounded-lg transition-colors"
+                        title="Share on Discord"
+                      >
+                        <MessageCircle className="w-5 h-5 text-slate-400 hover:text-white" />
                       </button>
                     </div>
                   </div>
@@ -466,6 +513,74 @@ function App() {
             >
               Download QR Code
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* Trending Modal */}
+      {showTrending && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="glass rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Flame className="w-6 h-6 text-orange-500" />
+                Trending Links
+              </h3>
+              <button
+                onClick={() => setShowTrending(false)}
+                className="text-slate-500 hover:text-slate-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {trending.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <Flame className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No trending links yet. Be the first!</p>
+              </div>
+            ) : (
+              <div className="space-y-3 overflow-y-auto flex-1">
+                {trending.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 hover:border-cyan-500/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-slate-700 font-mono w-8">
+                          #{index + 1}
+                        </span>
+                        <div>
+                          <a
+                            href={item.short_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1"
+                          >
+                            /{item.short_code}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <p className="text-slate-600 text-xs mt-1">
+                            Created {new Date(item.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold text-cyan-400 font-mono">
+                          {item.click_count}
+                        </div>
+                        <div className="text-xs text-slate-500">clicks</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t border-slate-700/50 text-center text-xs text-slate-500">
+              Updated every 5 minutes • Only public links shown
+            </div>
           </div>
         </div>
       )}

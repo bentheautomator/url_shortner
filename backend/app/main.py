@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, Header
+from fastapi import FastAPI, Depends, HTTPException, Request, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response, HTMLResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 from typing import Optional
 from collections import defaultdict
@@ -105,15 +105,110 @@ async def shorten_url(
     return response
 
 
+# Viral Interstitial HTML
+INTERSTITIAL_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting... | SHRTNR</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #0f1419 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f8fafc;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, #0ea5e9, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        .message {
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #1e293b;
+            border-top: 3px solid #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 2rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .cta {
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid rgba(14, 165, 233, 0.3);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            display: inline-block;
+        }
+        .cta a {
+            color: #0ea5e9;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .cta a:hover {
+            text-decoration: underline;
+        }
+        .skip {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        .skip a {
+            color: #94a3b8;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">SHRTNR</div>
+        <div class="loader"></div>
+        <p class="message">Redirecting you to your destination...</p>
+        <div class="cta">
+            <a href="/" target="_blank">Create your own short link in 5 seconds →</a>
+        </div>
+        <p class="skip"><a href="{destination}" id="skip">Skip waiting</a></p>
+    </div>
+    <script>
+        setTimeout(function() {{
+            window.location.href = "{destination}";
+        }}, 1500);
+    </script>
+</body>
+</html>
+"""
+
+
 # Redirect
 @app.get("/{short_code}")
 async def redirect_to_url(
     short_code: str,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    direct: bool = Query(False, description="Skip interstitial")
 ):
     # Skip API routes
-    if short_code in ["api", "health", "docs", "openapi.json", "redoc"]:
+    if short_code in ["api", "health", "docs", "openapi.json", "redoc", "trending"]:
         raise HTTPException(status_code=404, detail="Not found")
 
     url = db.query(URL).filter(URL.short_code == short_code).first()
@@ -130,7 +225,13 @@ async def redirect_to_url(
     db.add(click)
     db.commit()
 
-    return RedirectResponse(url=url.original_url, status_code=307)
+    # Direct redirect for API calls or returning visitors
+    if direct or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return RedirectResponse(url=url.original_url, status_code=307)
+
+    # Show interstitial for first-time web visitors
+    html = INTERSTITIAL_HTML.replace("{destination}", url.original_url)
+    return HTMLResponse(content=html)
 
 
 # Get URL stats
@@ -307,3 +408,35 @@ async def get_global_stats(db: Session = Depends(get_db)):
         "urls_today": urls_today,
         "clicks_today": clicks_today
     }
+
+
+# Trending URLs (most clicked in last 7 days)
+@app.get("/api/trending", response_model=list[URLResponse])
+async def get_trending_urls(
+    db: Session = Depends(get_db),
+    limit: int = 10
+):
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+
+    # Get URLs with most clicks in last 7 days
+    trending_query = (
+        db.query(URL, func.count(Click.id).label('recent_clicks'))
+        .join(Click, Click.url_id == URL.id)
+        .filter(Click.clicked_at >= seven_days_ago)
+        .group_by(URL.id)
+        .order_by(desc('recent_clicks'))
+        .limit(limit)
+    )
+
+    results = []
+    for url, recent_clicks in trending_query:
+        results.append(URLResponse(
+            id=url.id,
+            original_url=url.original_url[:50] + "..." if len(url.original_url) > 50 else url.original_url,
+            short_code=url.short_code,
+            created_at=url.created_at,
+            click_count=url.click_count,
+            short_url=f"{BASE_URL}/{url.short_code}"
+        ))
+
+    return results
