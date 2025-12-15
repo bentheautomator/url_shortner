@@ -12,6 +12,8 @@ import qrcode
 import io
 import base64
 
+import os
+
 from .database import engine, get_db, Base
 from .models import URL, Click, APIKey
 from .schemas import (
@@ -35,7 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_URL = "http://localhost:8000"
+# Set your domain here or via environment variable
+# Examples: https://shrtnr.io, https://s.yourdomain.com
+BASE_URL = os.getenv("SHRTNR_BASE_URL", "http://localhost:8000")
 
 
 def generate_short_code(length: int = 6) -> str:
@@ -185,7 +189,7 @@ INTERSTITIAL_HTML = """
         <div class="loader"></div>
         <p class="message">Redirecting you to your destination...</p>
         <div class="cta">
-            <a href="/" target="_blank">Create your own short link in 5 seconds →</a>
+            <a href="{base_url}" target="_blank">Create your own short link in 5 seconds →</a>
         </div>
         <p class="skip"><a href="{destination}" id="skip">Skip waiting</a></p>
     </div>
@@ -230,7 +234,7 @@ async def redirect_to_url(
         return RedirectResponse(url=url.original_url, status_code=307)
 
     # Show interstitial for first-time web visitors
-    html = INTERSTITIAL_HTML.replace("{destination}", url.original_url)
+    html = INTERSTITIAL_HTML.replace("{destination}", url.original_url).replace("{base_url}", BASE_URL)
     return HTMLResponse(content=html)
 
 

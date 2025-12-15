@@ -1,0 +1,4 @@
+# Vercel Python serverless functions dependencies
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+qrcode[pil]>=7.4.0
