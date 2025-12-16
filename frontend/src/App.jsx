@@ -33,7 +33,9 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/urls`)
       const data = await res.json()
-      setUrls(data)
+      if (res.ok && Array.isArray(data)) {
+        setUrls(data)
+      }
     } catch (err) {
       console.error('Failed to fetch URLs:', err)
     }
@@ -43,7 +45,9 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/stats`)
       const data = await res.json()
-      setStats(data)
+      if (res.ok && data && !data.detail) {
+        setStats(data)
+      }
     } catch (err) {
       console.error('Failed to fetch stats:', err)
     }
@@ -64,7 +68,9 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/trending`)
       const data = await res.json()
-      setTrending(data)
+      if (res.ok && Array.isArray(data)) {
+        setTrending(data)
+      }
       setShowTrending(true)
     } catch (err) {
       console.error('Failed to fetch trending:', err)
