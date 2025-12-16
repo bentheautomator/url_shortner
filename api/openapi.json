@@ -1,0 +1,224 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SHRTNR API",
+    "description": "Badass URL Shortener API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {"url": "https://short.automatorprojects.space", "description": "Production"},
+    {"url": "http://localhost:3000", "description": "Local"}
+  ],
+  "paths": {
+    "/api/shorten": {
+      "post": {
+        "summary": "Create shortened URL",
+        "operationId": "shortenUrl",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": {"type": "string", "format": "uri"},
+                  "custom_code": {"type": "string", "maxLength": 20, "pattern": "^[a-zA-Z0-9_-]+$"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL shortened successfully",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/ShortenedURL"}
+              }
+            }
+          },
+          "400": {"description": "Invalid request"}
+        }
+      }
+    },
+    "/api/urls": {
+      "get": {
+        "summary": "List all URLs",
+        "operationId": "listUrls",
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}},
+          {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}}
+        ],
+        "responses": {
+          "200": {
+            "description": "List of URLs",
+            "content": {
+              "application/json": {
+                "schema": {"type": "array", "items": {"$ref": "#/components/schemas/ShortenedURL"}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/urls/{code}": {
+      "get": {
+        "summary": "Get URL details",
+        "operationId": "getUrl",
+        "parameters": [
+          {"name": "code", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "URL details"},
+          "404": {"description": "URL not found"}
+        }
+      },
+      "delete": {
+        "summary": "Delete URL",
+        "operationId": "deleteUrl",
+        "parameters": [
+          {"name": "code", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "URL deleted"},
+          "404": {"description": "URL not found"}
+        }
+      }
+    },
+    "/api/urls/{code}/qr": {
+      "get": {
+        "summary": "Get QR code for URL",
+        "operationId": "getQrCode",
+        "parameters": [
+          {"name": "code", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "QR code image data"},
+          "404": {"description": "URL not found"}
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "summary": "Get global stats",
+        "operationId": "getStats",
+        "responses": {
+          "200": {
+            "description": "Global statistics",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Stats"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trending": {
+      "get": {
+        "summary": "Get trending URLs",
+        "operationId": "getTrending",
+        "responses": {
+          "200": {
+            "description": "Trending URLs",
+            "content": {
+              "application/json": {
+                "schema": {"type": "array", "items": {"$ref": "#/components/schemas/ShortenedURL"}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/keys": {
+      "get": {
+        "summary": "List API keys",
+        "operationId": "listKeys",
+        "responses": {
+          "200": {"description": "List of API keys"}
+        }
+      },
+      "post": {
+        "summary": "Create API key",
+        "operationId": "createKey",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {"type": "string", "minLength": 1}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {"description": "API key created"}
+        }
+      }
+    },
+    "/api/keys/{id}": {
+      "delete": {
+        "summary": "Revoke API key",
+        "operationId": "revokeKey",
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}
+        ],
+        "responses": {
+          "200": {"description": "API key revoked"},
+          "404": {"description": "API key not found"}
+        }
+      }
+    },
+    "/{code}": {
+      "get": {
+        "summary": "Redirect to original URL",
+        "operationId": "redirect",
+        "parameters": [
+          {"name": "code", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "direct", "in": "query", "schema": {"type": "boolean", "default": false}}
+        ],
+        "responses": {
+          "200": {"description": "Interstitial page"},
+          "307": {"description": "Direct redirect"},
+          "404": {"description": "URL not found"}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ShortenedURL": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "original_url": {"type": "string"},
+          "short_code": {"type": "string"},
+          "short_url": {"type": "string"},
+          "click_count": {"type": "integer"},
+          "created_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Stats": {
+        "type": "object",
+        "properties": {
+          "total_urls": {"type": "integer"},
+          "total_clicks": {"type": "integer"},
+          "urls_today": {"type": "integer"},
+          "clicks_today": {"type": "integer"}
+        }
+      }
+    },
+    "securitySchemes": {
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}

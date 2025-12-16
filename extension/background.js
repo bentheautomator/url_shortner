@@ -1,6 +1,12 @@
 // SHRTNR Browser Extension - Background Service Worker
 
-const API_URL = 'http://localhost:8000';
+const DEFAULT_API_URL = 'https://shrtnr.vercel.app';
+
+// Get configured API URL from storage
+async function getApiUrl() {
+  const { apiUrl } = await chrome.storage.sync.get(['apiUrl']);
+  return apiUrl || DEFAULT_API_URL;
+}
 
 // Create context menu on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -35,8 +41,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // Shorten URL function
 async function shortenUrl(url) {
   try {
-    // Get API key from storage
+    // Get API key and URL from storage
     const { apiKey } = await chrome.storage.sync.get(['apiKey']);
+    const apiUrl = await getApiUrl();
 
     const headers = {
       'Content-Type': 'application/json'
@@ -46,7 +53,7 @@ async function shortenUrl(url) {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${API_URL}/api/shorten`, {
+    const response = await fetch(`${apiUrl}/api/shorten`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ url })

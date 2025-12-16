@@ -4,7 +4,7 @@
   "framework": null,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/:code", "destination": "/api/redirect" },
+    { "source": "/:code([a-zA-Z0-9_-]{3,20})", "destination": "/api/redirect?code=:code" },
     { "source": "/((?!assets|favicon).*)", "destination": "/index.html" }
   ]
 }

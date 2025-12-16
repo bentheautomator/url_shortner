@@ -2,7 +2,8 @@
   "name": "shrtnr-cli",
   "version": "1.0.0",
   "description": "CLI tool for SHRTNR - the badass URL shortener",
-  "main": "index.js",
+  "type": "module",
+  "main": "bin/shrtnr.js",
   "bin": {
     "shrtnr": "./bin/shrtnr.js"
   },
@@ -17,6 +18,9 @@
   ],
   "author": "SHRTNR",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "chalk": "^5.3.0",
     "clipboardy": "^4.0.0",

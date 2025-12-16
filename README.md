@@ -17,15 +17,30 @@ A sleek, full-featured URL shortener with a dark cyberpunk interface, built for 
 
 ## Tech Stack
 
-- **Backend**: Python FastAPI + SQLite
+- **Backend**: Python Serverless Functions (Vercel)
+- **Database**: Neon Postgres
 - **Frontend**: React + Tailwind CSS + Vite
 - **CLI**: Node.js with Commander
 - **Extension**: Chrome Manifest V3
 - **Styling**: Dark cyber theme with glowing effects
 
-## Quick Start
+## Deployment
 
-### Backend
+See [DEPLOY.md](./DEPLOY.md) for deployment instructions to Vercel with Neon Postgres.
+
+## Quick Start (Local Development)
+
+### With Vercel CLI
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Run locally (requires DATABASE_URL in .env)
+vercel dev
+```
+
+### Legacy FastAPI Backend
 
 ```bash
 cd backend
@@ -35,7 +50,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+### Frontend Only
 
 ```bash
 cd frontend
@@ -52,6 +67,10 @@ cd cli
 npm install
 npm link  # Makes 'shrtnr' available globally
 
+# Configure (optional - defaults to https://shrtnr.vercel.app)
+shrtnr config --api-url https://your-instance.vercel.app
+shrtnr config --api-key your-api-key
+
 # Usage
 shrtnr https://example.com/long-url
 shrtnr https://example.com -c my-code  # Custom code
@@ -59,13 +78,18 @@ shrtnr stats                           # Global stats
 shrtnr list                            # List your URLs
 ```
 
+See [cli/README.md](./cli/README.md) for full CLI documentation.
+
 ### Browser Extension
 
-1. Open Chrome → `chrome://extensions`
+1. Open Chrome -> `chrome://extensions`
 2. Enable "Developer mode"
 3. Click "Load unpacked"
 4. Select the `extension` folder
-5. Right-click any link → "SHRTNR This Link"
+5. Click Settings to configure your API URL (defaults to Vercel deployment)
+6. Right-click any link -> "SHRTNR This Link"
+
+See [extension/README.md](./extension/README.md) for full extension documentation.
 
 ## API Endpoints
 
@@ -163,13 +187,14 @@ Commands:
 
 ```
 url_shortner/
-├── backend/           # FastAPI server
-│   ├── app/
-│   │   ├── main.py    # API routes
-│   │   ├── models.py  # SQLAlchemy models
-│   │   ├── schemas.py # Pydantic schemas
-│   │   └── database.py
-│   └── requirements.txt
+├── api/               # Vercel serverless functions
+│   ├── _db.py         # Shared database module
+│   ├── shorten.py     # POST /api/shorten
+│   ├── redirect.py    # GET /:code (with interstitial)
+│   ├── stats.py       # GET /api/stats
+│   ├── trending.py    # GET /api/trending
+│   ├── urls/          # URL management endpoints
+│   └── keys/          # API key management
 ├── frontend/          # React app
 │   ├── src/
 │   │   ├── App.jsx    # Main component
@@ -177,12 +202,18 @@ url_shortner/
 │   └── package.json
 ├── cli/               # Command-line tool
 │   ├── bin/shrtnr.js
-│   └── package.json
+│   ├── package.json
+│   └── README.md
 ├── extension/         # Chrome extension
 │   ├── manifest.json
 │   ├── background.js
 │   ├── popup.html/js
-│   └── icons/
+│   ├── icons/
+│   └── README.md
+├── backend/           # Legacy FastAPI server (for local dev)
+├── vercel.json        # Vercel configuration
+├── requirements.txt   # Python dependencies
+├── DEPLOY.md          # Deployment instructions
 └── README.md
 ```
 

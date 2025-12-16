@@ -3,7 +3,7 @@ import {
   Link2, Copy, Check, QrCode, BarChart3, Trash2,
   Zap, ExternalLink, ChevronDown, X, Loader2,
   Globe, MousePointerClick, Calendar, TrendingUp,
-  Twitter, MessageCircle, Share2, Flame
+  Twitter, MessageCircle, Share2, Flame, Key, Plus, Settings
 } from 'lucide-react'
 
 const API_BASE = '/api'
@@ -23,6 +23,11 @@ function App() {
   const [urlStats, setUrlStats] = useState(null)
   const [showTrending, setShowTrending] = useState(false)
   const [trending, setTrending] = useState([])
+  const [showApiKeys, setShowApiKeys] = useState(false)
+  const [apiKeys, setApiKeys] = useState([])
+  const [newKeyName, setNewKeyName] = useState('')
+  const [creatingKey, setCreatingKey] = useState(false)
+  const [copiedKey, setCopiedKey] = useState(null)
 
   useEffect(() => {
     fetchUrls()
@@ -75,6 +80,66 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch trending:', err)
     }
+  }
+
+  const fetchApiKeys = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/keys`)
+      const data = await res.json()
+      if (res.ok && Array.isArray(data)) {
+        setApiKeys(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch API keys:', err)
+    }
+  }
+
+  const createApiKey = async (e) => {
+    e.preventDefault()
+    if (!newKeyName.trim()) return
+
+    setCreatingKey(true)
+    try {
+      const res = await fetch(`${API_BASE}/keys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName.trim() })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data.detail || 'Failed to create API key')
+        return
+      }
+
+      setNewKeyName('')
+      fetchApiKeys()
+      setCopiedKey(data.key)
+      await navigator.clipboard.writeText(data.key)
+      setTimeout(() => setCopiedKey(null), 5000)
+    } catch (err) {
+      console.error('Failed to create API key:', err)
+    } finally {
+      setCreatingKey(false)
+    }
+  }
+
+  const revokeApiKey = async (keyId) => {
+    if (!confirm('Revoke this API key? This action cannot be undone.')) return
+
+    try {
+      await fetch(`${API_BASE}/keys/${keyId}`, { method: 'DELETE' })
+      fetchApiKeys()
+    } catch (err) {
+      console.error('Failed to revoke API key:', err)
+    }
+  }
+
+  const copyApiKey = async (key) => {
+    await navigator.clipboard.writeText(key)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 2000)
   }
 
   const shareToTwitter = (shortUrl) => {
@@ -179,6 +244,13 @@ function App() {
 
           {stats && (
             <div className="hidden md:flex items-center gap-6 text-sm">
+              <button
+                onClick={() => { fetchApiKeys(); setShowApiKeys(true); }}
+                className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors"
+              >
+                <Key className="w-4 h-4 text-purple-400" />
+                <span className="font-medium">API Keys</span>
+              </button>
               <button
                 onClick={fetchTrending}
                 className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors"
@@ -586,6 +658,116 @@ function App() {
 
             <div className="mt-4 pt-4 border-t border-slate-700/50 text-center text-xs text-slate-500">
               Updated every 5 minutes • Only public links shown
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* API Keys Modal */}
+      {showApiKeys && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="glass rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Key className="w-6 h-6 text-purple-400" />
+                API Keys
+              </h3>
+              <button
+                onClick={() => setShowApiKeys(false)}
+                className="text-slate-500 hover:text-slate-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Create new key form */}
+            <form onSubmit={createApiKey} className="mb-6">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  placeholder="Key name (e.g., 'CLI', 'My App')"
+                  className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none input-glow text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingKey || !newKeyName.trim()}
+                  className="btn-glow bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {creatingKey ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {copiedKey && (
+              <div className="mb-4 bg-green-500/10 border border-green-500/30 text-green-400 px-4 py-3 rounded-xl text-sm">
+                <p className="font-medium mb-1">API key created and copied to clipboard!</p>
+                <p className="font-mono text-xs break-all">{copiedKey}</p>
+                <p className="text-xs text-green-500/70 mt-2">Save this key - it won't be shown in full again.</p>
+              </div>
+            )}
+
+            {apiKeys.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <Key className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No API keys yet. Create one to use the CLI or integrate with your apps.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 overflow-y-auto flex-1">
+                {apiKeys.map((apiKey) => (
+                  <div
+                    key={apiKey.id}
+                    className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 hover:border-purple-500/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-white">{apiKey.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Created {new Date(apiKey.created_at).toLocaleDateString()}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <code className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400 font-mono">
+                            {apiKey.key.slice(0, 8)}...{apiKey.key.slice(-4)}
+                          </code>
+                          <button
+                            onClick={() => copyApiKey(apiKey.key)}
+                            className="text-slate-500 hover:text-cyan-400 transition-colors"
+                            title="Copy full key"
+                          >
+                            {copiedKey === apiKey.key ? (
+                              <Check className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => revokeApiKey(apiKey.id)}
+                        className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-slate-500 hover:text-red-400"
+                        title="Revoke key"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t border-slate-700/50 text-xs text-slate-500">
+              <p className="mb-2">Use your API key with the CLI or in API requests:</p>
+              <code className="block bg-slate-900/50 px-3 py-2 rounded-lg font-mono text-cyan-400/80">
+                curl -H "X-API-Key: YOUR_KEY" {window.location.origin}/api/shorten
+              </code>
             </div>
           </div>
         </div>

@@ -1,6 +1,12 @@
 // SHRTNR Browser Extension - Popup Script
 
-const API_URL = 'http://localhost:8000';
+const DEFAULT_API_URL = 'https://shrtnr.vercel.app';
+
+// Get configured API URL from storage
+async function getApiUrl() {
+  const { apiUrl } = await chrome.storage.sync.get(['apiUrl']);
+  return apiUrl || DEFAULT_API_URL;
+}
 
 const urlInput = document.getElementById('url-input');
 const customToggle = document.getElementById('custom-toggle');
@@ -40,6 +46,7 @@ shortenBtn.addEventListener('click', async () => {
 
   try {
     const { apiKey } = await chrome.storage.sync.get(['apiKey']);
+    const apiUrl = await getApiUrl();
 
     const headers = {
       'Content-Type': 'application/json'
@@ -54,7 +61,7 @@ shortenBtn.addEventListener('click', async () => {
       body.custom_code = customInput.value.trim();
     }
 
-    const response = await fetch(`${API_URL}/api/shorten`, {
+    const response = await fetch(`${apiUrl}/api/shorten`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
@@ -107,18 +114,41 @@ function showError(message) {
   resultMessage.textContent = '';
 }
 
-// Settings link (placeholder)
-document.getElementById('settings-link').addEventListener('click', (e) => {
+// Settings link
+document.getElementById('settings-link').addEventListener('click', async (e) => {
   e.preventDefault();
-  // For now, just show an alert
-  const apiKey = prompt('Enter your API key (leave empty to clear):');
-  if (apiKey !== null) {
-    if (apiKey.trim()) {
-      chrome.storage.sync.set({ apiKey: apiKey.trim() });
-      alert('API key saved!');
-    } else {
-      chrome.storage.sync.remove('apiKey');
-      alert('API key cleared!');
+
+  const { apiUrl, apiKey } = await chrome.storage.sync.get(['apiUrl', 'apiKey']);
+  const currentUrl = apiUrl || DEFAULT_API_URL;
+
+  const choice = prompt(
+    `SHRTNR Settings:\n\n` +
+    `1. API URL: ${currentUrl}\n` +
+    `2. API Key: ${apiKey ? '***' + apiKey.slice(-4) : 'Not set'}\n\n` +
+    `Enter "url" to change API URL, "key" to change API key, or "clear" to reset all:`
+  );
+
+  if (choice === null) return;
+
+  if (choice.toLowerCase() === 'url') {
+    const newUrl = prompt('Enter API URL:', currentUrl);
+    if (newUrl !== null && newUrl.trim()) {
+      chrome.storage.sync.set({ apiUrl: newUrl.trim() });
+      alert('API URL saved!');
     }
+  } else if (choice.toLowerCase() === 'key') {
+    const newKey = prompt('Enter your API key (leave empty to clear):');
+    if (newKey !== null) {
+      if (newKey.trim()) {
+        chrome.storage.sync.set({ apiKey: newKey.trim() });
+        alert('API key saved!');
+      } else {
+        chrome.storage.sync.remove('apiKey');
+        alert('API key cleared!');
+      }
+    }
+  } else if (choice.toLowerCase() === 'clear') {
+    chrome.storage.sync.remove(['apiUrl', 'apiKey']);
+    alert('Settings reset to defaults!');
   }
 });

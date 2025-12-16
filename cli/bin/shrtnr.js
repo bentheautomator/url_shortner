@@ -10,7 +10,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 const CONFIG_PATH = join(homedir(), '.shrtnr');
-const DEFAULT_API = 'http://localhost:8000';
+const DEFAULT_API = process.env.SHRTNR_API_URL || 'https://short.automatorprojects.space';
 
 // Load config
 function loadConfig() {
