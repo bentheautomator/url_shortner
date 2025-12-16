@@ -11,8 +11,16 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-HTTP-Method-Override')
         self.end_headers()
+
+    def do_POST(self):
+        """Handle POST with method override for DELETE (Vercel workaround)"""
+        method_override = self.headers.get('X-HTTP-Method-Override', '').upper()
+        if method_override == 'DELETE':
+            return self.do_DELETE()
+        self.send_json({"detail": "Use DELETE or X-HTTP-Method-Override: DELETE"}, 405)
 
     def do_DELETE(self):
         try:

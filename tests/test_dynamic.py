@@ -85,7 +85,14 @@ class DynamicAPITester:
                 body = self._generate_body(route)
                 response = self.client.post(path, json=body)
             elif method == "DELETE":
+                # Try DELETE first, then fall back to POST with override
                 response = self.client.delete(path)
+                if response.status_code == 405:
+                    # Vercel workaround: POST with X-HTTP-Method-Override
+                    response = self.client.post(
+                        path,
+                        headers={"X-HTTP-Method-Override": "DELETE"}
+                    )
             else:
                 return None, "skipped", f"Unsupported method: {method}"
 

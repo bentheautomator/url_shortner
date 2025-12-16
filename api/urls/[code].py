@@ -13,9 +13,16 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, X-HTTP-Method-Override')
         self.end_headers()
+
+    def do_POST(self):
+        """Handle POST with method override for DELETE (Vercel workaround)"""
+        method_override = self.headers.get('X-HTTP-Method-Override', '').upper()
+        if method_override == 'DELETE':
+            return self.do_DELETE()
+        self.send_json({"detail": "POST not supported on this endpoint. Use DELETE or X-HTTP-Method-Override: DELETE"}, 405)
 
     def get_code(self):
         """Extract short code from path like /api/urls/abc123"""

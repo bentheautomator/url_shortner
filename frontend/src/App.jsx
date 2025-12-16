@@ -129,7 +129,11 @@ function App() {
     if (!confirm('Revoke this API key? This action cannot be undone.')) return
 
     try {
-      await fetch(`${API_BASE}/keys/${keyId}`, { method: 'DELETE' })
+      // Use POST with X-HTTP-Method-Override for Vercel compatibility
+      await fetch(`${API_BASE}/keys/${keyId}`, {
+        method: 'POST',
+        headers: { 'X-HTTP-Method-Override': 'DELETE' }
+      })
       fetchApiKeys()
     } catch (err) {
       console.error('Failed to revoke API key:', err)
@@ -209,7 +213,11 @@ function App() {
     if (!confirm('Delete this shortened URL?')) return
 
     try {
-      await fetch(`${API_BASE}/urls/${shortCode}`, { method: 'DELETE' })
+      // Use POST with X-HTTP-Method-Override for Vercel compatibility
+      await fetch(`${API_BASE}/urls/${shortCode}`, {
+        method: 'POST',
+        headers: { 'X-HTTP-Method-Override': 'DELETE' }
+      })
       fetchUrls()
       fetchStats()
       if (selectedUrl === shortCode) {
